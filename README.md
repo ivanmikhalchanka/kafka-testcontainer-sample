@@ -45,9 +45,6 @@ and [JUnit 5](https://junit.org/junit5/)
 
 2. #### Add [JUnit 5 TestContainers](https://www.testcontainers.org/test_framework_integration/junit_5/) maven dependency:
 
-<details>
-  <summary>pom.xml changes example</summary>
-
 ```xml
 
 <dependencies>
@@ -60,8 +57,6 @@ and [JUnit 5](https://junit.org/junit5/)
   ...
 </dependencies>
 ```
-
-</details>
 
 3. #### Annotate test class with [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
 
