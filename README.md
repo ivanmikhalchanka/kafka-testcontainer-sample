@@ -95,7 +95,9 @@ public static void initKafkaProperties(){
 }
 ```
 
-6. #### Create test configuration for [KafkaTemplate](https://docs.spring.io/spring-kafka/api/org/springframework/kafka/core/KafkaTemplate.html)
+6. #### Create test configuration for KafkaTemplate
+
+[KafkaTemplate javadoc](https://docs.spring.io/spring-kafka/api/org/springframework/kafka/core/KafkaTemplate.html)
 
 Will be used to send messages to Kafka TestContainer.\
 It is recommended to
@@ -129,7 +131,7 @@ public class TestKafkaProducerConfig {
 }
 ```
 
-7. #### Spy on all beans with [@KafkaListener](https://docs.spring.io/spring-kafka/docs/current/api/org/springframework/kafka/annotation/KafkaListener.html) annotation
+7. #### Spy on all beans with @KafkaListener annotation
 
 That would allow to verify that consumer actually called, e.g.:
 
@@ -166,8 +168,8 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 
 - [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
 - [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
-  with [TestKafkaProducerConfig](#create-test-configuration-for-kafkatemplatehttpsdocsspringiospring-kafkaapiorgspringframeworkkafkacorekafkatemplatehtml)
-  and [TestKafkaConsumersSpiesBeanPostProcessor](#spy-on-all-beans-with-kafkalistenerhttpsdocsspringiospring-kafkadocscurrentapiorgspringframeworkkafkaannotationkafkalistenerhtml-annotation)
+  with [TestKafkaProducerConfig](#create-test-configuration-for-kafkatemplate)
+  and [TestKafkaConsumersSpiesBeanPostProcessor](#spy-on-all-beans-with-kafkalistener-annotation)
 
 ```java
 
