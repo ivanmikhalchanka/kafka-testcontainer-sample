@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
-import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaProducerConfig;
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,9 +22,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @SpringBootTest
-@ContextConfiguration(classes = {
-    TestKafkaConsumersSpiesBeanPostProcessor.class,
-    TestKafkaProducerConfig.class})
+@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest {
 
   @Container
@@ -42,7 +38,6 @@ class SampleEventConsumerIntegrationTest {
   }
 
   @Autowired
-  @Qualifier(TestKafkaProducerConfig.TEST_KAFKA_TEMPLATE)
   KafkaTemplate<String, Object> kafkaTemplate;
 
   @Autowired

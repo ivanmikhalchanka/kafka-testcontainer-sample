@@ -95,43 +95,7 @@ public static void initKafkaProperties(){
 }
 ```
 
-6. #### Create test configuration for KafkaTemplate
-
-[KafkaTemplate javadoc](https://docs.spring.io/spring-kafka/api/org/springframework/kafka/core/KafkaTemplate.html)
-
-Will be used to send messages to Kafka TestContainer.\
-It is recommended to
-use [@TestConfiguration](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/TestConfiguration.html)
-so it applied for tests only:
-
-```java
-
-@TestConfiguration
-public class TestKafkaProducerConfig {
-
-  public static final String TEST_KAFKA_TEMPLATE = "testKafkaTemplate";
-
-
-  @Bean
-  public KafkaTemplate<String, Object> testKafkaTemplate(
-      @Value("${spring.kafka.producer.bootstrap-servers}") String bootstrapServers,
-      @Value("${spring.kafka.producer.key-serializer}") String keySerializer,
-      @Value("${spring.kafka.producer.value-serializer}") String valueSerializer) {
-    Map<String, Object> props = new HashMap<>();
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
-    props.put(ProducerConfig.CLIENT_ID_CONFIG, "functional-test-producer");
-
-    DefaultKafkaProducerFactory<String, Object> factory =
-        new DefaultKafkaProducerFactory<>(props);
-
-    return new KafkaTemplate<>(factory);
-  }
-}
-```
-
-7. #### Spy on all beans with @KafkaListener annotation
+6. #### Spy on all beans with @KafkaListener annotation
 
 That would allow to verify that consumer actually called, e.g.:
 
@@ -139,9 +103,9 @@ That would allow to verify that consumer actually called, e.g.:
   [BeanPostProcessor](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/beans/factory/config/BeanPostProcessor.html)
   implementation that wraps all beans with
   [Mockito.spy](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Spy.html)
-  and annotate it with
+- it is recommended to use
   [@TestConfiguration](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/TestConfiguration.html)
-  so it applied for tests only:
+  so config is not autowired to non-test profile:
 
 ```java
 
@@ -164,12 +128,11 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 }
 ```
 
-8. #### Add required spring test annotations:
+7. #### Add required spring test annotations:
 
 - [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
 - [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
-  with [TestKafkaProducerConfig](#create-test-configuration-for-kafkatemplate)
-  and [TestKafkaConsumersSpiesBeanPostProcessor](#spy-on-all-beans-with-kafkalistener-annotation)
+  with [TestKafkaConsumersSpiesBeanPostProcessor](#spy-on-all-beans-with-kafkalistener-annotation)
 
 ```java
 
@@ -183,18 +146,17 @@ class SampleEventConsumerIntegrationTest {
 }
 ```
 
-9. #### Serialization/deserialization config used in these examples:
+8. #### Serialization/deserialization config used in these examples:
 
 ```yaml
 spring:
   kafka:
     consumer:
-      auto-offset-reset: earliest
-      group-id: kafka-testcontainer-sample
+      ...
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
-      enable-auto-commit: false
     producer:
+      ...
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 ```
