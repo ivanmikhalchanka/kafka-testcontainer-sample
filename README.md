@@ -95,7 +95,7 @@ public static void initKafkaProperties(){
 }
 ```
 
-6. #### Spy on all beans with @KafkaListener annotation
+6. #### Replace all beans with @KafkaListener annotation with spies
 
 That would allow to verify that consumer actually called, e.g.:
 
@@ -132,7 +132,7 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 
 - [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
 - [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
-  with [TestKafkaConsumersSpiesBeanPostProcessor](#spy-on-all-beans-with-kafkalistener-annotation)
+  with [TestKafkaConsumersSpiesBeanPostProcessor](#replace-all-beans-with-kafkalistener-annotation-with-spies)
 
 ```java
 
