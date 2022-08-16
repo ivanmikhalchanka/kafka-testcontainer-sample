@@ -76,10 +76,10 @@ public abstract class SampleEventConsumerIntegrationTest {
 ```java
 
 @Container
-public static final KafkaContainer kafka=
+public static final KafkaContainer kafka =
     new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
-    .withEnv("KAFKA_AUTO_OFFSET_RESET","earliest")
-    .withEnv("KAFKA_MAX_POLL_RECORDS","1");
+        .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
+        .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
 ```
 
 5. #### Init kafka connection properties
@@ -92,7 +92,7 @@ e.g. default spring:
 public static void initKafkaProperties(){
     System.setProperty("spring.kafka.consumer.bootstrap-servers",kafka.getBootstrapServers());
     System.setProperty("spring.kafka.producer.bootstrap-servers",kafka.getBootstrapServers());
-    }
+}
 ```
 
 6. #### Create test configuration for [KafkaTemplate](https://docs.spring.io/spring-kafka/api/org/springframework/kafka/core/KafkaTemplate.html)
