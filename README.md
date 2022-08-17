@@ -7,10 +7,10 @@ and [JUnit 5](https://junit.org/junit5/)
 
 ## Configuration step-by-step guide
 
-1. #### Add [Kafka TestContainer](https://www.testcontainers.org/modules/kafka/) maven dependencies
+1. #### Add maven dependencies
 
-<details>
-  <summary>pom.xml changes example</summary>
+- [Kafka TestContainer](https://www.testcontainers.org/modules/kafka/)
+- [JUnit 5 TestContainers](https://www.testcontainers.org/test_framework_integration/junit_5/)
 
 ```xml
 
@@ -21,34 +21,6 @@ and [JUnit 5](https://junit.org/junit5/)
     <artifactId>kafka</artifactId>
     <scope>test</scope>
   </dependency>
-  ...
-</dependencies>
-  ...
-<dependencyManagement>
-...
-<dependencies>
-  ...
-  <dependency>
-    <groupId>org.testcontainers</groupId>
-    <artifactId>testcontainers-bom</artifactId>
-    <version>${testcontainers.version}</version>
-    <type>pom</type>
-    <scope>import</scope>
-  </dependency>
-  ...
-</dependencies>
-...
-</dependencyManagement>
-```
-
-</details>
-
-2. #### Add [JUnit 5 TestContainers](https://www.testcontainers.org/test_framework_integration/junit_5/) maven dependency:
-
-```xml
-
-<dependencies>
-  ...
   <dependency>
     <groupId>org.testcontainers</groupId>
     <artifactId>junit-jupiter</artifactId>
@@ -56,48 +28,27 @@ and [JUnit 5](https://junit.org/junit5/)
   </dependency>
   ...
 </dependencies>
+...
+<dependencyManagement>
+  <dependencies>
+    ...
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-bom</artifactId>
+      <version>${testcontainers.version}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+    ...
+  </dependencies>
+</dependencyManagement>
 ```
 
-3. #### Annotate test class with [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
+2. #### Replace all beans with @KafkaListener annotation with spies
 
-This would enable tracking of lifecycle of all TestContainers annotated
-as [@Container](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Container.html)
+That would allow to verify that consumer actually called.
 
-```java
-
-@Testcontainers
-public abstract class SampleEventConsumerIntegrationTest {
-  ...
-}
-```
-
-4. #### Init [KafkaContainer](https://www.javadoc.io/doc/org.testcontainers/kafka/latest/org/testcontainers/containers/KafkaContainer.html) field with required configs:
-
-```java
-
-@Container
-public static final KafkaContainer kafka =
-    new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
-        .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
-        .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
-```
-
-5. #### Init kafka connection properties
-
-e.g. default spring:
-
-```java
-
-@BeforeAll
-public static void initKafkaProperties(){
-    System.setProperty("spring.kafka.consumer.bootstrap-servers",kafka.getBootstrapServers());
-    System.setProperty("spring.kafka.producer.bootstrap-servers",kafka.getBootstrapServers());
-}
-```
-
-6. #### Replace all beans with @KafkaListener annotation with spies
-
-That would allow to verify that consumer actually called, e.g.:
+Example:
 
 - add test
   [BeanPostProcessor](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/beans/factory/config/BeanPostProcessor.html)
@@ -128,25 +79,46 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 }
 ```
 
-7. #### Add required spring test annotations:
+3. #### Test class configuration:
 
-- [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
-- [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
+- Annotate test class with
+  [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
+  in order to enable tracking of lifecycle of all TestContainers annotated with
+  [@Container](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Container.html)
+- Add
+  [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
+  and
+  [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
   with [TestKafkaConsumersSpiesBeanPostProcessor](#replace-all-beans-with-kafkalistener-annotation-with-spies)
+- Init
+  [KafkaContainer](https://www.javadoc.io/doc/org.testcontainers/kafka/latest/org/testcontainers/containers/KafkaContainer.html)
+  field with required configs
+- Init kafka connection properties with
+  [@BeforeAll](https://junit.org/junit5/docs/5.0.0/api/org/junit/jupiter/api/BeforeAll.html)
 
 ```java
 
 @Testcontainers
 @SpringBootTest
-@ContextConfiguration(classes = {
-    TestKafkaConsumersSpiesBeanPostProcessor.class,
-    TestKafkaProducerConfig.class})
+@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest {
-   ...
+
+  @Container
+  public static final KafkaContainer kafka =
+      new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
+          .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
+          .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
+
+  @BeforeAll
+  public static void initKafkaProperties() {
+    System.setProperty("spring.kafka.consumer.bootstrap-servers", kafka.getBootstrapServers());
+    System.setProperty("spring.kafka.producer.bootstrap-servers", kafka.getBootstrapServers());
+  }
+  ...
 }
 ```
 
-8. #### Serialization/deserialization config used in these examples:
+4. #### Serialization/deserialization config used in these examples:
 
 ```yaml
 spring:
@@ -191,7 +163,6 @@ public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
 class SampleEventConsumerIntegrationTest {
   ...
   @Autowired
-  @Qualifier(TestKafkaProducerConfig.TEST_KAFKA_TEMPLATE)
   KafkaTemplate<String, Object> kafkaTemplate;
 
   @Autowired
@@ -217,7 +188,6 @@ class SampleEventConsumerIntegrationTest {
 class SampleEventConsumerIntegrationTest {
   ...
   @Autowired
-  @Qualifier(TestKafkaProducerConfig.TEST_KAFKA_TEMPLATE)
   KafkaTemplate<String, Object> kafkaTemplate;
 
   @Autowired
