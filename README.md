@@ -86,7 +86,7 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 
 3. #### Configure Kafka TestContainer:
 
-- Annotate test class with
+- Annotate config with
   [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
   in order to enable tracking of lifecycle of all TestContainers annotated with
   [@Container](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Container.html)
