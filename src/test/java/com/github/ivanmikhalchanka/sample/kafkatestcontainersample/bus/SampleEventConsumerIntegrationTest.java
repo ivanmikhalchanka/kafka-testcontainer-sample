@@ -7,35 +7,19 @@ import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKa
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
 
-@Testcontainers
 @SpringBootTest
 @ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
-class SampleEventConsumerIntegrationTest {
-
-  @Container
-  public static final KafkaContainer kafka =
-      new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
-          .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
-          .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
-
-  @BeforeAll
-  public static void initKafkaProperties() {
-    System.setProperty("spring.kafka.consumer.bootstrap-servers", kafka.getBootstrapServers());
-    System.setProperty("spring.kafka.producer.bootstrap-servers", kafka.getBootstrapServers());
-  }
+class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;

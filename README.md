@@ -28,19 +28,19 @@ and [JUnit 5](https://junit.org/junit5/)
   </dependency>
   ...
 </dependencies>
-...
+  ...
 <dependencyManagement>
-  <dependencies>
-    ...
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers-bom</artifactId>
-      <version>${testcontainers.version}</version>
-      <type>pom</type>
-      <scope>import</scope>
-    </dependency>
-    ...
-  </dependencies>
+<dependencies>
+  ...
+  <dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>testcontainers-bom</artifactId>
+    <version>${testcontainers.version}</version>
+    <type>pom</type>
+    <scope>import</scope>
+  </dependency>
+  ...
+</dependencies>
 </dependencyManagement>
 ```
 
@@ -59,6 +59,11 @@ Example:
   so config is not autowired to non-test profile:
 
 ```java
+import org.mockito.Mockito;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.kafka.annotation.KafkaListener;
 
 @TestConfiguration
 public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPostProcessor {
@@ -79,17 +84,12 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
 }
 ```
 
-3. #### Test class configuration:
+3. #### Configure Kafka TestContainer:
 
 - Annotate test class with
   [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
   in order to enable tracking of lifecycle of all TestContainers annotated with
   [@Container](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Container.html)
-- Add
-  [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
-  and
-  [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
-  with [TestKafkaConsumersSpiesBeanPostProcessor](#replace-all-beans-with-kafkalistener-annotation-with-spies)
 - Init
   [KafkaContainer](https://www.javadoc.io/doc/org.testcontainers/kafka/latest/org/testcontainers/containers/KafkaContainer.html)
   field with required configs
@@ -97,28 +97,53 @@ public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPost
   [@BeforeAll](https://junit.org/junit5/docs/5.0.0/api/org/junit/jupiter/api/BeforeAll.html)
 
 ```java
+import org.junit.jupiter.api.BeforeAll;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
-@SpringBootTest
-@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
-class SampleEventConsumerIntegrationTest {
+public interface KafkaIntegrationTest {
 
   @Container
-  public static final KafkaContainer kafka =
+  KafkaContainer kafka =
       new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
           .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
           .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
 
   @BeforeAll
-  public static void initKafkaProperties() {
+  static void initKafkaProperties() {
     System.setProperty("spring.kafka.consumer.bootstrap-servers", kafka.getBootstrapServers());
     System.setProperty("spring.kafka.producer.bootstrap-servers", kafka.getBootstrapServers());
   }
+}
+```
+
+4. #### Test class configuration:
+
+- Add
+  [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
+  and
+  [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
+  with [TestKafkaConsumersSpiesBeanPostProcessor](#replace-all-beans-with-kafkalistener-annotation-with-spies)
+- Implement interface with Kafka TestContainer
+  config: [KafkaIntegrationTest](#configure-kafka-testcontainer)
+
+```java
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ContextConfiguration;
+
+@SpringBootTest
+@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
+class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
   ...
 }
 ```
 
-4. #### Serialization/deserialization config used in these examples:
+5. #### Serialization/deserialization config used in these examples:
 
 ```yaml
 spring:
@@ -138,6 +163,11 @@ Next additional config required for app
 to successfully deserialize messages:
 
 ```java
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.support.converter.BytesJsonMessageConverter;
 
 @Configuration
 public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
@@ -158,10 +188,20 @@ public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
 - Verify consumer received event:
 
 ```java
-...
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.ContextConfiguration;
 
-class SampleEventConsumerIntegrationTest {
-  ...
+@SpringBootTest
+@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
+class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
+
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -183,10 +223,27 @@ class SampleEventConsumerIntegrationTest {
 - verify consumer received event and processing completed:
 
 ```java
-...
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 
-class SampleEventConsumerIntegrationTest {
-  ...
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ContextConfiguration;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
+
+@SpringBootTest
+@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
+class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
+
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;
 
