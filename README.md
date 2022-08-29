@@ -44,47 +44,7 @@ and [JUnit 5](https://junit.org/junit5/)
 </dependencyManagement>
 ```
 
-2. #### Replace all beans with @KafkaListener annotation with spies
-
-That would allow to verify that consumer actually called.
-
-Example:
-
-- add test
-  [BeanPostProcessor](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/beans/factory/config/BeanPostProcessor.html)
-  implementation that wraps all beans with
-  [Mockito.spy](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Spy.html)
-- it is recommended to use
-  [@TestConfiguration](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/TestConfiguration.html)
-  so config is not autowired to non-test profile:
-
-```java
-import org.mockito.Mockito;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.kafka.annotation.KafkaListener;
-
-@TestConfiguration
-public static class TestKafkaConsumersSpiesBeanPostProcessor implements BeanPostProcessor {
-
-  @Override
-  public Object postProcessBeforeInitialization(Object bean, String beanName)
-      throws BeansException {
-    boolean isKafkaConsumer =
-        Stream.of(bean.getClass().getDeclaredMethods())
-            .map(method -> method.getAnnotation(KafkaListener.class))
-            .anyMatch(Objects::nonNull);
-    if (isKafkaConsumer) {
-      bean = Mockito.spy(bean);
-    }
-
-    return BeanPostProcessor.super.postProcessAfterInitialization(bean, beanName);
-  }
-}
-```
-
-3. #### Configure Kafka TestContainer:
+2. #### Configure Kafka TestContainer:
 
 - Annotate config with
   [@Testcontainers](https://javadoc.io/doc/org.testcontainers/junit-jupiter/latest/org/testcontainers/junit/jupiter/Testcontainers.html)
@@ -120,15 +80,15 @@ public interface KafkaIntegrationTest {
 }
 ```
 
-4. #### Test class configuration:
+3. #### Test class configuration:
 
 - Add
   [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
-  and
-  [@ContextConfiguration](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/test/context/ContextConfiguration.html)
-  with [TestKafkaConsumersSpiesBeanPostProcessor](#replace-all-beans-with-kafkalistener-annotation-with-spies)
 - Implement interface with Kafka TestContainer
   config: [KafkaIntegrationTest](#configure-kafka-testcontainer)
+- Autowire consumer bean using
+  [@SpyBean](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/mock/mockito/SpyBean.html)
+  in order to verify that message was actually consumed from Kafka
 
 ```java
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
@@ -137,13 +97,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ContextConfiguration;
 
 @SpringBootTest
-@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
+
+  @SpyBean
+  SampleEventConsumer consumer;
   ...
 }
 ```
 
-5. #### Serialization/deserialization config used in these examples:
+4. #### Serialization/deserialization config used in these examples:
 
 ```yaml
 spring:
@@ -189,23 +151,21 @@ public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
 
 ```java
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
-import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.test.context.ContextConfiguration;
 
 @SpringBootTest
-@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;
 
-  @Autowired
+  @SpyBean
   SampleEventConsumer consumer;
 
   @Test
@@ -220,13 +180,12 @@ class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 }
 ```
 
-- verify consumer received event and processing completed:
+- verify app state changes after event processed:
 
 ```java
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 
-import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -237,17 +196,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ContextConfiguration;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
 
 @SpringBootTest
-@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;
 
-  @Autowired
+  @SpyBean
   SampleEventConsumer consumer;
 
   @Autowired
@@ -283,5 +241,3 @@ not executed yet.\
 In order to fix this behaviour it is required to use some mechanisms like
 [CountDownLatch](https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/CountDownLatch.html)
 .
-
-

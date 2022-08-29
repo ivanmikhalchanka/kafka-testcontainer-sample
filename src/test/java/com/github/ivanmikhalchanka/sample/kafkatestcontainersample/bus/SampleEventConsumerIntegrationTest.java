@@ -3,28 +3,25 @@ package com.github.ivanmikhalchanka.sample.kafkatestcontainersample.bus;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 
-import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.TestKafkaConsumersSpiesBeanPostProcessor;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
 import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ContextConfiguration;
-import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
 
 @SpringBootTest
-@ContextConfiguration(classes = TestKafkaConsumersSpiesBeanPostProcessor.class)
 class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 
   @Autowired
   KafkaTemplate<String, Object> kafkaTemplate;
 
-  @Autowired
+  @SpyBean
   SampleEventConsumer consumer;
 
   @Autowired
