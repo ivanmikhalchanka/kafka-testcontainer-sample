@@ -67,20 +67,22 @@ import org.testcontainers.utility.DockerImageName;
 public interface KafkaIntegrationTest {
 
   @Container
-  KafkaContainer kafka =
+  KafkaContainer kafkaTestContainer =
       new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
           .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
           .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
 
   @BeforeAll
   static void initKafkaProperties() {
-    System.setProperty("spring.kafka.consumer.bootstrap-servers", kafka.getBootstrapServers());
-    System.setProperty("spring.kafka.producer.bootstrap-servers", kafka.getBootstrapServers());
+    System.setProperty("spring.kafka.consumer.bootstrap-servers",
+        kafkaTestContainer.getBootstrapServers());
+    System.setProperty("spring.kafka.producer.bootstrap-servers",
+        kafkaTestContainer.getBootstrapServers());
   }
 }
 ```
 
-3. #### Test class configuration:
+3. #### Consumer test class configuration:
 
 - Add
   [@SpringBootTest](https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html)
@@ -105,7 +107,45 @@ class SampleEventConsumerIntegrationTest implements KafkaIntegrationTest {
 }
 ```
 
-4. #### Serialization/deserialization config used in these examples:
+4. #### Producer test class configuration:
+
+- Init instance of
+  [KafkaConsumer](https://kafka.apache.org/26/javadoc/index.html?org/apache/kafka/clients/consumer/KafkaConsumer.html)
+
+```java
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
+import java.util.Map;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.junit.jupiter.api.BeforeAll;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class SampleEventProducerIntegrationTest implements KafkaIntegrationTest {
+
+  static KafkaConsumer<String, String> kafkaConsumer;
+
+  @BeforeAll
+  static void initKafkaListener() {
+    Map<String, Object> consumerConfig =
+        Map.of(
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+            kafkaTestContainer.getBootstrapServers(),
+            ConsumerConfig.GROUP_ID_CONFIG, "integration-test-consumer",
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true",
+            ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "10",
+            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "60000",
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+    kafkaConsumer = new KafkaConsumer<>(consumerConfig);
+  }
+}
+```
+
+5. #### Serialization/deserialization config used in these examples:
 
 ```yaml
 spring:
@@ -146,6 +186,8 @@ public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
 ```
 
 ## Test examples:
+
+### Consumer:
 
 - Verify consumer received event:
 
@@ -241,3 +283,62 @@ not executed yet.\
 In order to fix this behaviour it is required to use some mechanisms like
 [CountDownLatch](https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/CountDownLatch.html)
 .
+
+### Producer:
+
+- Verify event sent:
+
+```java
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.config.KafkaIntegrationTest;
+import com.github.ivanmikhalchanka.sample.kafkatestcontainersample.model.SampleEvent;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
+
+@SpringBootTest
+class SampleEventProducerIntegrationTest implements KafkaIntegrationTest {
+
+  // initialization of static KafkaConsumer<String, String> kafkaConsumer;
+
+  static final String EVENT_ID = "test-event-id";
+  static final String MESSAGE = "test-message";
+  static final String TOPIC = "sample-event-outbox";
+
+  @Autowired
+  KafkaTemplate<String, Object> kafkaTemplate;
+
+  @Test
+  void testSendMessage() throws JsonProcessingException {
+    SampleEvent event = new SampleEvent(EVENT_ID, MESSAGE);
+
+    kafkaTemplate.send(TOPIC, event.getEventId(), event);
+    kafkaTemplate.flush();
+
+    // subscribe to topic & poll events with timeout
+    kafkaConsumer.subscribe(List.of(TOPIC));
+    ConsumerRecords<String, String> records = kafkaConsumer.poll(
+        Duration.of(3, ChronoUnit.SECONDS));
+    // verify sent event presented
+    assertEquals(1, records.count());
+    ConsumerRecord<String, String> record = records.iterator().next();
+    // verify event was sent with correct key
+    assertEquals(EVENT_ID, record.key());
+    // verify event body
+    SampleEvent result = new ObjectMapper().readValue(record.value(), SampleEvent.class);
+    assertEquals(MESSAGE, result.getMessage());
+  }
+}
+```
+
+`KafkaConsumer<String, String> kafkaConsumer` initialization details available described
+in [Producer test class configuration](#producer-test-class-configuration) chapter. 

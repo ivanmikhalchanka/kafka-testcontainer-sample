@@ -10,14 +10,14 @@ import org.testcontainers.utility.DockerImageName;
 public interface KafkaIntegrationTest {
 
   @Container
-  KafkaContainer kafka =
+  KafkaContainer kafkaTestContainer =
       new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.0.1"))
           .withEnv("KAFKA_AUTO_OFFSET_RESET", "earliest")
           .withEnv("KAFKA_MAX_POLL_RECORDS", "1");
 
   @BeforeAll
   static void initKafkaProperties() {
-    System.setProperty("spring.kafka.consumer.bootstrap-servers", kafka.getBootstrapServers());
-    System.setProperty("spring.kafka.producer.bootstrap-servers", kafka.getBootstrapServers());
+    System.setProperty("spring.kafka.consumer.bootstrap-servers", kafkaTestContainer.getBootstrapServers());
+    System.setProperty("spring.kafka.producer.bootstrap-servers", kafkaTestContainer.getBootstrapServers());
   }
 }
